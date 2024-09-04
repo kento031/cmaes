@@ -687,8 +687,8 @@ class ExactGPModel(gpytorch.models.ExactGP):
         kernel: gpytorch.kernels.Kernel,
     ) -> None:
 
-        train_x = torch.from_numpy(train_x)
-        train_y = torch.from_numpy(train_y)
+        train_x: torch.Tensor = torch.from_numpy(train_x)
+        train_y: torch.Tensor = torch.from_numpy(train_y)
         super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
         self.mean_module = gpytorch.means.ConstantMean()
         self.covar_module = kernel
