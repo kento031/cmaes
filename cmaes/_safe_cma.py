@@ -488,7 +488,7 @@ class SafeCMA:
         self._naive_cma_update(solutions)
         
         X = np.stack([s[0] for s in solutions])
-        safe_evals = np.array([s[2] for s in solutions]) # this code is for one safety constraint
+        safe_evals = np.array([s[2] for s in solutions])
 
         self._add_evaluated_point(X, safe_evals)
         
