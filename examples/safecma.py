@@ -22,7 +22,7 @@ def example1():
     # safe seeds
     safe_seeds_num = 10
     safe_seeds = (np.random.rand(safe_seeds_num, dim) * 2 - 1) * 5
-    safe_seeds[:, 0] = - np.abs(safe_seeds[:, 0])
+    safe_seeds[:, 0] = -np.abs(safe_seeds[:, 0])
 
     # evaluation of safe seeds (with multiple safety functions)
     seeds_evals = np.array([quadratic(x) for x in safe_seeds])
@@ -31,7 +31,7 @@ def example1():
 
     # optimizer (safe CMA-ES)
     optimizer = SafeCMA(
-        sigma=1.,
+        sigma=1.0,
         safety_threshold=safety_threshold,
         safe_seeds=safe_seeds,
         seeds_evals=seeds_evals,
@@ -51,7 +51,7 @@ def example1():
 
             # save best eval
             best_eval = np.min((best_eval, value))
-            unsafe_eval_counts += (safe_value > safety_threshold)
+            unsafe_eval_counts += safe_value > safety_threshold
 
             solutions.append((x, value, safe_value))
 
@@ -87,17 +87,19 @@ def example2():
     # safe seeds
     safe_seeds_num = 10
     safe_seeds = (np.random.rand(safe_seeds_num, dim) * 2 - 1) * 5
-    safe_seeds[:, 0] = - np.abs(safe_seeds[:, 0])
-    safe_seeds[:, 1] = - np.abs(safe_seeds[:, 1])
+    safe_seeds[:, 0] = -np.abs(safe_seeds[:, 0])
+    safe_seeds[:, 1] = -np.abs(safe_seeds[:, 1])
 
     # evaluation of safe seeds (with multiple safety functions)
     seeds_evals = np.array([quadratic(x) for x in safe_seeds])
-    seeds_safe_evals = np.stack([[safe_function1(x), safe_function2(x)] for x in safe_seeds])
+    seeds_safe_evals = np.stack(
+        [[safe_function1(x), safe_function2(x)] for x in safe_seeds]
+    )
     safety_threshold = np.array([0, 0])
 
     # optimizer (safe CMA-ES)
     optimizer = SafeCMA(
-        sigma=1.,
+        sigma=1.0,
         safety_threshold=safety_threshold,
         safe_seeds=safe_seeds,
         seeds_evals=seeds_evals,
@@ -117,7 +119,7 @@ def example2():
 
             # save best eval
             best_eval = np.min((best_eval, value))
-            unsafe_eval_counts += (safe_value > safety_threshold)
+            unsafe_eval_counts += safe_value > safety_threshold
 
             solutions.append((x, value, safe_value))
 

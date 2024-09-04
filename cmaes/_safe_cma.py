@@ -157,7 +157,7 @@ class SafeCMA:
 
         self.lip_penalty_coef = 1
         self.lip_penalty_inc_rate = 10  # alpha
-        self.lip_penalty_dec_rate = self.lip_penalty_inc_rate ** (1. / n_dim)
+        self.lip_penalty_dec_rate = self.lip_penalty_inc_rate ** (1.0 / n_dim)
 
         self.lip_ite = 5  # T_data
         self.sample_num_lip = population_size * self.lip_ite
@@ -290,12 +290,14 @@ class SafeCMA:
         # function that returns the norm of gradient
         def df(x, model):
 
-            out_scalar = (x.ndim == 1)
+            out_scalar = x.ndim == 1
             x = np.atleast_2d(x)
 
             grad_norm = torch.zeros(len(x))
 
-            X = torch.autograd.Variable(torch.Tensor(np.atleast_2d(x)), requires_grad=True)
+            X = torch.autograd.Variable(
+                torch.Tensor(np.atleast_2d(x)), requires_grad=True
+            )
             mean = likelihood(model(X)).mean
             dxdmean = torch.autograd.grad(mean.sum(), X)[0]
 
@@ -304,12 +306,14 @@ class SafeCMA:
             if out_scalar:
                 grad_norm = grad_norm.mean()
 
-            return - grad_norm
+            return -grad_norm
 
         def elementwise_df(i):
             samples = self._rng.randn(self.sample_num_lip, self._n_dim)
             samples = np.concatenate([samples, z_points], axis=0)
-            model = ExactGPModel(z_points, modified_evals[:, i], likelihood, self.kernel)
+            model = ExactGPModel(
+                z_points, modified_evals[:, i], likelihood, self.kernel
+            )
 
             try:
                 pred_samples = df(samples, model) * evals_std[i]
@@ -326,17 +330,22 @@ class SafeCMA:
                 bounds = np.tile([-3, 3], (self._n_dim, 1))
 
                 res = scipy.optimize.minimize(
-                    df, x0, method='L-BFGS-B', bounds=bounds, args=(model), options={'maxiter': 200}
+                    df,
+                    x0,
+                    method="L-BFGS-B",
+                    bounds=bounds,
+                    args=(model),
+                    options={"maxiter": 200},
                 )
                 result_value = res.fun * evals_std[i]
 
                 if not np.isnan(result_value):
-                    return - float(result_value)
+                    return -float(result_value)
                 else:
-                    return - np.min(pred_samples)
+                    return -np.min(pred_samples)
             except Exception:
                 # if fail to optimize
-                return - np.min(pred_samples)
+                return -np.min(pred_samples)
 
         return np.array([elementwise_df(i) for i in range(self.safety_func_num)])
 
@@ -401,7 +410,7 @@ class SafeCMA:
 
             if len(self.sampled_safe_evals) < self.sample_num_lip:
                 exponent = 1 / len(self.sampled_safe_evals)
-                lip = lip * (self.init_L_base ** exponent)
+                lip = lip * (self.init_L_base**exponent)
 
             lip = np.clip(lip, self.init_L, None)
         else:
@@ -410,9 +419,7 @@ class SafeCMA:
         self.lipschitz_constant = lip
 
         slack = self.safety_threshold - self.seeds_safe_evals[best_seed_id]
-        delta = np.min(
-            (slack) / self.lipschitz_constant
-        )
+        delta = np.min((slack) / self.lipschitz_constant)
         gauss_tr = np.sqrt(scipy.stats.chi2.ppf(self.gamma, df=self._n_dim))
         sigma = sigma * np.min((delta / gauss_tr, 1))
 
@@ -455,7 +462,7 @@ class SafeCMA:
             slack = self.safety_threshold[:, None, None] - prev_safe_evals[None, :, :]
             radius = np.min(slack / self.lipschitz_constant[:, None, None], axis=(0, 2))
 
-            radius[radius < 0] = - np.inf
+            radius[radius < 0] = -np.inf
             # dist: distance between current samples and evaluated points
             dist = np.sqrt(((z[None, :] - sampled_z_points) ** 2).sum(axis=1))
 
@@ -463,7 +470,7 @@ class SafeCMA:
             argmin_sample_id = np.argmin(dist[None, :] - radius)
             closest_z_sample = sampled_z_points[argmin_sample_id]
 
-            ratio = (invalid_dist / dist[argmin_sample_id])
+            ratio = invalid_dist / dist[argmin_sample_id]
             z = (1 - ratio) * z + ratio * closest_z_sample
 
         y = cast(np.ndarray, B.dot(np.diag(D)).dot(B.T)).dot(z)  # ~ N(0, C)
@@ -499,11 +506,13 @@ class SafeCMA:
         self.lipschitz_constant = self._compute_lipschitz_constant()
         if len(self.sampled_safe_evals) < self.sample_num_lip:
             exponent = 1 / len(self.sampled_safe_evals)
-            self.lipschitz_constant *= (self.init_L_base ** exponent)
+            self.lipschitz_constant *= self.init_L_base**exponent
 
         inv_num = np.sum((safe_evals > self.safety_threshold))
         if inv_num > 0:
-            self.lip_penalty_coef *= self.lip_penalty_inc_rate ** (inv_num / self._popsize)
+            self.lip_penalty_coef *= self.lip_penalty_inc_rate ** (
+                inv_num / self._popsize
+            )
         else:
             self.lip_penalty_coef /= self.lip_penalty_dec_rate
             self.lip_penalty_coef = np.max((self.lip_penalty_coef, 1))
