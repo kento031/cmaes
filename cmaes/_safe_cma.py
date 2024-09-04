@@ -7,12 +7,12 @@ from typing import Any
 from typing import cast
 from typing import Optional
 
-import scipy
 try:
+    import scipy
     import gpytorch
     import torch
 except ImportError:
-    assert False, "Implementation of Safe CMA-ES requires gpytorch and torch."
+    assert False, "Implementation of Safe CMA-ES requires scipy, gpytorch, and torch."
 
 
 _EPS = 1e-8
