@@ -31,23 +31,27 @@ class SafeCMA:
 
             # objective function
             def quadratic(x):
-                coef = 1000 ** (np.arange(dim) / float(dim - 1)) 
+                coef = 1000 ** (np.arange(dim) / float(dim - 1))
                 return np.sum((x * coef) ** 2)
 
             # safety function
             def safe_function(x):
                 return x[0]
 
-            # safe seed
-            safe_seeds = (np.random.rand(10, dim) * 2 - 1) * 5
-            safe_seeds[:,0] = - np.abs(safe_seeds[:,0])
-            seeds_evals = np.array([ quadratic(x) for x in safe_seeds ])
-            seeds_safe_evals = np.stack([ [safe_function(x)] for x in safe_seeds ])
+            # safe seeds
+            safe_seeds_num = 10
+            safe_seeds = (np.random.rand(safe_seeds_num, dim) * 2 - 1) * 5
+            safe_seeds[:, 0] = - np.abs(safe_seeds[:, 0])
+
+            # evaluation of safe seeds (with multiple safety functions)
+            seeds_evals = np.array([quadratic(x) for x in safe_seeds])
+            seeds_safe_evals = np.stack([[safe_function(x)] for x in safe_seeds])
             safety_threshold = np.array([0])
 
+            # optimizer (safe CMA-ES)
             optimizer = SafeCMA(
-                sigma=1., 
-                safety_threshold=safety_threshold, 
+                sigma=1.,
+                safety_threshold=safety_threshold,
                 safe_seeds=safe_seeds,
                 seeds_evals=seeds_evals,
                 seeds_safe_evals=seeds_safe_evals,
@@ -74,7 +78,7 @@ class SafeCMA:
                 optimizer.tell(solutions)
 
                 print(f"#{generation} ({best_eval} {unsafe_eval_counts})")
-                
+
                 if optimizer.should_stop():
                     break
 
@@ -165,7 +169,7 @@ class SafeCMA:
         # log for safe CMAES
         self.sampled_points = safe_seeds.copy()
         self.sampled_safe_evals = seeds_safe_evals.copy()
-        
+
         # safe CMA-ES do not use negative weights
         weights_prime = np.array(
             np.log((population_size + 1) / 2) - np.log(np.arange(population_size) + 1)
@@ -264,7 +268,6 @@ class SafeCMA:
         self._funhist_term = 10 + math.ceil(30 * n_dim / population_size)
         self._funhist_values = np.empty(self._funhist_term * 2)
 
-
     def _compute_lipschitz_constant(self):
 
         likelihood = gpytorch.likelihoods.GaussianLikelihood(
@@ -313,15 +316,15 @@ class SafeCMA:
             except Exception:
                 # if fail to optimize
                 return self.lipschitz_constant[i]
-        
+
             if np.isnan(pred_samples).any():
                 return self.lipschitz_constant[i]
-            
+
             x0 = samples[np.argmin(pred_samples)]
             
             try:
                 bounds = np.tile([-3, 3], (self._n_dim, 1))
-                
+
                 res = scipy.optimize.minimize(
                     df, x0, method='L-BFGS-B', bounds=bounds, args=(model), options={'maxiter': 200}
                 )
@@ -414,7 +417,7 @@ class SafeCMA:
         sigma = sigma * np.min((delta / gauss_tr, 1))
 
         return mean, sigma
-        
+
     def ask(self) -> np.ndarray:
         """Sample a parameter"""
         for i in range(self._n_max_resampling):
@@ -483,7 +486,7 @@ class SafeCMA:
         param = np.where(param < self._bounds[:, 0], self._bounds[:, 0], param)
         param = np.where(param > self._bounds[:, 1], self._bounds[:, 1], param)
         return param
-    
+
     def tell(self, solutions: list[tuple[np.ndarray, float]]) -> None:
 
         self._naive_cma_update(solutions)
@@ -492,7 +495,7 @@ class SafeCMA:
         safe_evals = np.array([s[2] for s in solutions])
 
         self._add_evaluated_point(X, safe_evals)
-        
+
         self.lipschitz_constant = self._compute_lipschitz_constant()
         if len(self.sampled_safe_evals) < self.sample_num_lip:
             exponent = 1 / len(self.sampled_safe_evals)

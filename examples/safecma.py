@@ -6,7 +6,7 @@ def example1():
     """
     example with single safety function
     """
-    
+
     # number of dimensions
     dim = 5
 
