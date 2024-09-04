@@ -289,7 +289,7 @@ class SafeCMA:
         modified_evals = (target_safe_evals - evals_mean) / evals_std
 
         # function that returns the norm of gradient
-        def df(x, model) -> torch.tensor:
+        def df(x: np.ndarray, model: ExactGPModel) -> torch.Tensor:
 
             out_scalar = x.ndim == 1
             x = np.atleast_2d(x)
@@ -305,11 +305,11 @@ class SafeCMA:
             grad_norm = torch.sqrt(torch.sum(dxdmean * dxdmean, axis=1))
 
             if out_scalar:
-                grad_norm = grad_norm.mean()
+                grad_norm = grad_norm.mean().to(torch.float64)
 
             return -grad_norm
 
-        def elementwise_df(i) -> float:
+        def elementwise_df(i: int) -> float:
             samples = self._rng.randn(self.sample_num_lip, self._n_dim)
             samples = np.concatenate([samples, z_points], axis=0)
             model = ExactGPModel(
@@ -399,7 +399,7 @@ class SafeCMA:
         assert bounds is None or _is_valid_bounds(bounds, self._mean), "invalid bounds"
         self._bounds = bounds
 
-    def _init_distribution(self, sigma) -> tuple[np.ndarray, float]:
+    def _init_distribution(self, sigma: float) -> tuple[np.ndarray, float]:
         # set initial mean vector
         best_seed_id = np.argmin(self.seeds_evals)
         mean = self.safe_seeds[best_seed_id]
@@ -509,17 +509,17 @@ class SafeCMA:
             exponent = 1 / len(self.sampled_safe_evals)
             self.lipschitz_constant *= self.init_L_base**exponent
 
-        inv_num = np.sum((safe_evals > self.safety_threshold))
+        inv_num = np.sum(safe_evals > self.safety_threshold, dtype=np.float32)
         if inv_num > 0:
             self.lip_penalty_coef *= self.lip_penalty_inc_rate ** (
-                inv_num / float(self._popsize)
+                inv_num / self._popsize
             )
         else:
             self.lip_penalty_coef /= self.lip_penalty_dec_rate
             self.lip_penalty_coef = np.max((self.lip_penalty_coef, 1))
         self.lipschitz_constant *= self.lip_penalty_coef
 
-    def _add_evaluated_point(self, X, safe_evals) -> None:
+    def _add_evaluated_point(self, X: np.ndarray, safe_evals: np.ndarray) -> None:
         self.sampled_points = np.concatenate([self.sampled_points, X], axis=0)
         self.sampled_safe_evals = np.vstack([self.sampled_safe_evals, safe_evals])
 
@@ -679,7 +679,14 @@ def _decompress_symmetric(sym1d: np.ndarray) -> np.ndarray:
 
 
 class ExactGPModel(gpytorch.models.ExactGP):
-    def __init__(self, train_x, train_y, likelihood, kernel) -> None:
+    def __init__(
+        self,
+        train_x: np.ndarray,
+        train_y: np.ndarray,
+        likelihood: gpytorch.likelihoods.Likelihood,
+        kernel: gpytorch.kernels.Kernel,
+    ) -> None:
+
         train_x = torch.Tensor(train_x)
         train_y = torch.Tensor(train_y)
         super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
