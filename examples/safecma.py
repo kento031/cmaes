@@ -12,7 +12,7 @@ def example1():
 
     # objective function
     def quadratic(x):
-        coef = 1000 ** (np.arange(dim) / float(dim - 1)) 
+        coef = 1000 ** (np.arange(dim) / float(dim - 1))
         return np.sum((x * coef) ** 2)
 
     # safety function
