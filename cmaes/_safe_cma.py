@@ -9,9 +9,7 @@ from typing import Optional
 
 import gpytorch
 import scipy
-from scipy.stats import norm
 import torch
-import copy
 
 _EPS = 1e-8
 _MEAN_MAX = 1e32
@@ -157,13 +155,13 @@ class SafeCMA:
         self.kernel.lengthscale = 8.0 * n_dim
 
         self.lip_penalty_coef = 1
-        self.lip_penalty_inc_rate = 10 # alpha
+        self.lip_penalty_inc_rate = 10  # alpha
         self.lip_penalty_dec_rate = self.lip_penalty_inc_rate ** (1. / n_dim)
 
-        self.lip_ite = 5 # T_data
+        self.lip_ite = 5  # T_data
         self.sample_num_lip = population_size * self.lip_ite
         self.sample_log_num = population_size * self.lip_ite
-        self.init_L_base = 10 # zeta_init
+        self.init_L_base = 10  # zeta_init
         self.init_L = 100
         self.gamma = 0.9
 
@@ -173,7 +171,7 @@ class SafeCMA:
         
         # safe CMA-ES do not use negative weights
         weights_prime = np.array(
-            np.log((population_size + 1) / 2) - np.log(np.arange(population_size) + 1) 
+            np.log((population_size + 1) / 2) - np.log(np.arange(population_size) + 1)
         )
         weights_prime[weights_prime < 0] = 0
 
@@ -235,7 +233,6 @@ class SafeCMA:
             assert cov.shape == (n_dim, n_dim), "Invalid shape of covariance matrix"
             self._C = cov
 
-        
         self._D: Optional[np.ndarray] = None
         self._B: Optional[np.ndarray] = None
 
@@ -273,7 +270,9 @@ class SafeCMA:
 
     def _compute_lipschitz_constant(self):
         
-        likelihood = gpytorch.likelihoods.GaussianLikelihood(noise_constraint=gpytorch.constraints.GreaterThan(0))
+        likelihood = gpytorch.likelihoods.GaussianLikelihood(
+            noise_constraint=gpytorch.constraints.GreaterThan(0)
+        )
         likelihood.noise = 0
 
         B, D = self._eigen_decomposition()
@@ -288,29 +287,29 @@ class SafeCMA:
         evals_std = np.std(target_safe_evals, axis=0)
         modified_evals = (target_safe_evals - evals_mean) / evals_std
         
-        # function that returns the norm of gradient 
+        # function that returns the norm of gradient
         def df(x, model):
             
             out_scalar = (x.ndim == 1)
             x = np.atleast_2d(x)
 
             grad_norm = torch.zeros(len(x))
-            
-            X = torch.autograd.Variable(torch.Tensor(np.atleast_2d(x)), requires_grad=True)#.cuda()
+
+            X = torch.autograd.Variable(torch.Tensor(np.atleast_2d(x)), requires_grad=True)
             mean = likelihood(model(X)).mean
             dxdmean = torch.autograd.grad(mean.sum(), X)[0]
 
-            grad_norm = torch.sqrt(torch.sum(dxdmean * dxdmean, axis=1))#.cpu()
-                
+            grad_norm = torch.sqrt(torch.sum(dxdmean * dxdmean, axis=1))
+
             if out_scalar:
                 grad_norm = grad_norm.mean()
 
             return - grad_norm
-            
+
         def elementwise_df(i):
             samples = self._rng.randn(self.sample_num_lip, self._n_dim)
             samples = np.concatenate([samples, z_points], axis=0)
-            model = ExactGPModel(z_points, modified_evals[:,i], likelihood, self.kernel)
+            model = ExactGPModel(z_points, modified_evals[:, i], likelihood, self.kernel)
 
             try:
                 pred_samples = df(samples, model) * evals_std[i]
@@ -324,7 +323,7 @@ class SafeCMA:
             x0 = samples[np.argmin(pred_samples)]
             
             try:
-                bounds = np.tile([-3,3], (self._n_dim,1))
+                bounds = np.tile([-3, 3], (self._n_dim,1))
                 
                 res = scipy.optimize.minimize(
                     df, x0, method='L-BFGS-B', bounds=bounds, args=(model), options={'maxiter': 200}
@@ -335,12 +334,11 @@ class SafeCMA:
                     return - float(result_value)
                 else:
                     return - np.min(pred_samples)
-            except:
+            except Exception:
                 # if fail to optimize
                 return - np.min(pred_samples)
-            
-        return np.array([ elementwise_df(i) for i in range(self.safety_func_num) ])
-            
+
+        return np.array([elementwise_df(i) for i in range(self.safety_func_num)])
 
     def __getstate__(self) -> dict[str, Any]:
         attrs = {}
@@ -408,7 +406,7 @@ class SafeCMA:
             lip = np.clip(lip, self.init_L, None)
         else:
             lip = np.ones(self.safety_func_num) * self.init_L
-        
+
         self.lipschitz_constant = lip
 
         delta = np.min((self.safety_threshold - self.seeds_safe_evals[best_seed_id]) / self.lipschitz_constant)
@@ -451,14 +449,14 @@ class SafeCMA:
             sampled_z_points = (prev_x - self._mean).dot(invSqrtC) / self._sigma
 
             # radius: radius of trust region around evaluated points
-            radius = np.min((self.safety_threshold[:,None,None] - prev_safe_evals[None,:,:]) / self.lipschitz_constant[:,None,None], axis=(0,2))
+            radius = np.min((self.safety_threshold[:, None, None] - prev_safe_evals[None, :, :]) / self.lipschitz_constant[:,None,None], axis=(0,2))
 
             radius[radius < 0] = - np.inf
             # dist: distance between current samples and evaluated points
-            dist = np.sqrt(((z[None,:] - sampled_z_points) ** 2).sum(axis=1))
+            dist = np.sqrt(((z[None, :] - sampled_z_points) ** 2).sum(axis=1))
 
-            invalid_dist = np.clip(np.min(dist[None,:] - radius), 0, np.inf)
-            argmin_sample_id = np.argmin(dist[None,:] - radius)
+            invalid_dist = np.clip(np.min(dist[None, :] - radius), 0, np.inf)
+            argmin_sample_id = np.argmin(dist[None, :] - radius)
             closest_z_sample = sampled_z_points[argmin_sample_id]
 
             ratio = (invalid_dist / dist[argmin_sample_id])
@@ -671,10 +669,10 @@ class ExactGPModel(gpytorch.models.ExactGP):
         super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
         self.mean_module = gpytorch.means.ConstantMean()
         self.covar_module = kernel
-        
+
         self.eval()
         likelihood.eval()
-        
+
     def forward(self, x):
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)

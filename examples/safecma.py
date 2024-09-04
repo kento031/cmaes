@@ -2,10 +2,11 @@ import numpy as np
 from cmaes import SafeCMA
 
 
-"""
-    example with single safety function
-"""
 def example1():
+    """
+    example with single safety function
+    """
+    
     # number of dimensions
     dim = 5
 
@@ -21,17 +22,17 @@ def example1():
     # safe seeds
     safe_seeds_num = 10
     safe_seeds = (np.random.rand(safe_seeds_num, dim) * 2 - 1) * 5
-    safe_seeds[:,0] = - np.abs(safe_seeds[:,0])
+    safe_seeds[:, 0] = - np.abs(safe_seeds[:, 0])
 
     # evaluation of safe seeds (with multiple safety functions)
-    seeds_evals = np.array([ quadratic(x) for x in safe_seeds ])
-    seeds_safe_evals = np.stack([ [safe_function(x)] for x in safe_seeds ])
+    seeds_evals = np.array([quadratic(x) for x in safe_seeds])
+    seeds_safe_evals = np.stack([[safe_function(x)] for x in safe_seeds])
     safety_threshold = np.array([0])
 
     # optimizer (safe CMA-ES)
     optimizer = SafeCMA(
-        sigma=1., 
-        safety_threshold=safety_threshold, 
+        sigma=1.,
+        safety_threshold=safety_threshold,
         safe_seeds=safe_seeds,
         seeds_evals=seeds_evals,
         seeds_safe_evals=seeds_safe_evals,
@@ -58,15 +59,16 @@ def example1():
         optimizer.tell(solutions)
 
         print(f"#{generation} ({best_eval} {unsafe_eval_counts})")
-        
+
         if optimizer.should_stop():
             break
 
 
-"""
-    example with multiple safety functions
-"""
 def example2():
+    """
+    example with multiple safety functions
+    """
+
     # number of dimensions
     dim = 5
 
@@ -85,18 +87,18 @@ def example2():
     # safe seeds
     safe_seeds_num = 10
     safe_seeds = (np.random.rand(safe_seeds_num, dim) * 2 - 1) * 5
-    safe_seeds[:,0] = - np.abs(safe_seeds[:,0])
-    safe_seeds[:,1] = - np.abs(safe_seeds[:,1]) 
+    safe_seeds[:, 0] = - np.abs(safe_seeds[:, 0])
+    safe_seeds[:, 1] = - np.abs(safe_seeds[:, 1]) 
 
     # evaluation of safe seeds (with multiple safety functions)
     seeds_evals = np.array([ quadratic(x) for x in safe_seeds ])
-    seeds_safe_evals = np.stack([ [safe_function1(x), safe_function2(x)] for x in safe_seeds ])
-    safety_threshold = np.array([0,0])
+    seeds_safe_evals = np.stack([[safe_function1(x), safe_function2(x)] for x in safe_seeds])
+    safety_threshold = np.array([0, 0])
 
     # optimizer (safe CMA-ES)
     optimizer = SafeCMA(
-        sigma=1., 
-        safety_threshold=safety_threshold, 
+        sigma=1.,
+        safety_threshold=safety_threshold,
         safe_seeds=safe_seeds,
         seeds_evals=seeds_evals,
         seeds_safe_evals=seeds_safe_evals,
@@ -123,9 +125,10 @@ def example2():
         optimizer.tell(solutions)
 
         print(f"#{generation} ({best_eval} {unsafe_eval_counts})")
-        
+
         if optimizer.should_stop():
             break
+
 
 if __name__ == "__main__":
     example1()
