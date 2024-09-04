@@ -523,7 +523,9 @@ class SafeCMA:
         self.sampled_points = np.concatenate([self.sampled_points, X], axis=0)
         self.sampled_safe_evals = np.vstack([self.sampled_safe_evals, safe_evals])
 
-    def _naive_cma_update(self, solutions: list[tuple[np.ndarray, float, float]]) -> None:
+    def _naive_cma_update(
+        self, solutions: list[tuple[np.ndarray, float, float]]
+    ) -> None:
         """Tell evaluation values"""
 
         assert len(solutions) == self._popsize, "Must tell popsize-length solutions."
