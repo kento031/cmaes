@@ -7,9 +7,13 @@ from typing import Any
 from typing import cast
 from typing import Optional
 
-import gpytorch
 import scipy
-import torch
+try:
+    import gpytorch
+    import torch
+except ImportError:
+    assert False, "Implementation of Safe CMA-ES requires gpytorch and torch."
+
 
 _EPS = 1e-8
 _MEAN_MAX = 1e32
