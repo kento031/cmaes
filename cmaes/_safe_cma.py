@@ -302,7 +302,7 @@ class SafeCMA:
             mean = likelihood(model(X)).mean
             dxdmean = torch.autograd.grad(mean.sum(), X)[0]
 
-            grad_norm = torch.sqrt(torch.sum(dxdmean * dxdmean, axis=1))
+            grad_norm = torch.sqrt(torch.sum(dxdmean * dxdmean, dim=1))
 
             if out_scalar:
                 grad_norm = grad_norm.mean().to(torch.float64)
@@ -687,8 +687,8 @@ class ExactGPModel(gpytorch.models.ExactGP):
         kernel: gpytorch.kernels.Kernel,
     ) -> None:
 
-        train_x = torch.Tensor(train_x)
-        train_y = torch.Tensor(train_y)
+        train_x = torch.from_numpy(train_x)
+        train_y = torch.from_numpy(train_y)
         super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
         self.mean_module = gpytorch.means.ConstantMean()
         self.covar_module = kernel
@@ -696,7 +696,7 @@ class ExactGPModel(gpytorch.models.ExactGP):
         self.eval()
         likelihood.eval()
 
-    def forward(self, x) -> gpytorch.distributions.Distribution:
+    def forward(self, x: torch.Tensor) -> gpytorch.distributions.Distribution:
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
