@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import gpytorch.distributions
 import numpy as np
 
 from typing import Any
@@ -268,7 +269,7 @@ class SafeCMA:
         self._funhist_term = 10 + math.ceil(30 * n_dim / population_size)
         self._funhist_values = np.empty(self._funhist_term * 2)
 
-    def _compute_lipschitz_constant(self):
+    def _compute_lipschitz_constant(self) -> np.ndarray:
 
         likelihood = gpytorch.likelihoods.GaussianLikelihood(
             noise_constraint=gpytorch.constraints.GreaterThan(0)
@@ -288,7 +289,7 @@ class SafeCMA:
         modified_evals = (target_safe_evals - evals_mean) / evals_std
 
         # function that returns the norm of gradient
-        def df(x, model):
+        def df(x, model) -> torch.tensor:
 
             out_scalar = x.ndim == 1
             x = np.atleast_2d(x)
@@ -308,7 +309,7 @@ class SafeCMA:
 
             return -grad_norm
 
-        def elementwise_df(i):
+        def elementwise_df(i) -> float:
             samples = self._rng.randn(self.sample_num_lip, self._n_dim)
             samples = np.concatenate([samples, z_points], axis=0)
             model = ExactGPModel(
@@ -398,7 +399,7 @@ class SafeCMA:
         assert bounds is None or _is_valid_bounds(bounds, self._mean), "invalid bounds"
         self._bounds = bounds
 
-    def _init_distribution(self, sigma):
+    def _init_distribution(self, sigma) -> tuple[np.ndarray, float]:
         # set initial mean vector
         best_seed_id = np.argmin(self.seeds_evals)
         mean = self.safe_seeds[best_seed_id]
@@ -494,7 +495,7 @@ class SafeCMA:
         param = np.where(param > self._bounds[:, 1], self._bounds[:, 1], param)
         return param
 
-    def tell(self, solutions: list[tuple[np.ndarray, float]]) -> None:
+    def tell(self, solutions: list[tuple[np.ndarray, float, float]]) -> None:
 
         self._naive_cma_update(solutions)
 
@@ -511,18 +512,18 @@ class SafeCMA:
         inv_num = np.sum((safe_evals > self.safety_threshold))
         if inv_num > 0:
             self.lip_penalty_coef *= self.lip_penalty_inc_rate ** (
-                inv_num / self._popsize
+                inv_num / float(self._popsize)
             )
         else:
             self.lip_penalty_coef /= self.lip_penalty_dec_rate
             self.lip_penalty_coef = np.max((self.lip_penalty_coef, 1))
         self.lipschitz_constant *= self.lip_penalty_coef
 
-    def _add_evaluated_point(self, X, safe_evals):
+    def _add_evaluated_point(self, X, safe_evals) -> None:
         self.sampled_points = np.concatenate([self.sampled_points, X], axis=0)
         self.sampled_safe_evals = np.vstack([self.sampled_safe_evals, safe_evals])
 
-    def _naive_cma_update(self, solutions: list[tuple[np.ndarray, float]]) -> None:
+    def _naive_cma_update(self, solutions: list[tuple[np.ndarray, float, float]]) -> None:
         """Tell evaluation values"""
 
         assert len(solutions) == self._popsize, "Must tell popsize-length solutions."
@@ -676,7 +677,7 @@ def _decompress_symmetric(sym1d: np.ndarray) -> np.ndarray:
 
 
 class ExactGPModel(gpytorch.models.ExactGP):
-    def __init__(self, train_x, train_y, likelihood, kernel):
+    def __init__(self, train_x, train_y, likelihood, kernel) -> None:
         train_x = torch.Tensor(train_x)
         train_y = torch.Tensor(train_y)
         super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
@@ -686,7 +687,7 @@ class ExactGPModel(gpytorch.models.ExactGP):
         self.eval()
         likelihood.eval()
 
-    def forward(self, x):
+    def forward(self, x) -> gpytorch.distributions.Distribution:
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
