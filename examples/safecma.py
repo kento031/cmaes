@@ -74,7 +74,7 @@ def example2():
 
     # objective function
     def quadratic(x):
-        coef = 1000 ** (np.arange(dim) / float(dim - 1)) 
+        coef = 1000 ** (np.arange(dim) / float(dim - 1))
         return np.sum((x * coef) ** 2)
 
     # safety functions
@@ -88,10 +88,10 @@ def example2():
     safe_seeds_num = 10
     safe_seeds = (np.random.rand(safe_seeds_num, dim) * 2 - 1) * 5
     safe_seeds[:, 0] = - np.abs(safe_seeds[:, 0])
-    safe_seeds[:, 1] = - np.abs(safe_seeds[:, 1]) 
+    safe_seeds[:, 1] = - np.abs(safe_seeds[:, 1])
 
     # evaluation of safe seeds (with multiple safety functions)
-    seeds_evals = np.array([ quadratic(x) for x in safe_seeds ])
+    seeds_evals = np.array([quadratic(x) for x in safe_seeds])
     seeds_safe_evals = np.stack([[safe_function1(x), safe_function2(x)] for x in safe_seeds])
     safety_threshold = np.array([0, 0])
 

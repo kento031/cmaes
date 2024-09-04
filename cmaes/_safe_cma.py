@@ -114,9 +114,6 @@ class SafeCMA:
 
         cov:
             A covariance matrix (optional).
-
-        lr_adapt:
-            Flag for learning rate adaptation (optional; default=False)
     """
 
     def __init__(
@@ -269,7 +266,7 @@ class SafeCMA:
 
 
     def _compute_lipschitz_constant(self):
-        
+
         likelihood = gpytorch.likelihoods.GaussianLikelihood(
             noise_constraint=gpytorch.constraints.GreaterThan(0)
         )
@@ -277,19 +274,19 @@ class SafeCMA:
 
         B, D = self._eigen_decomposition()
         invSqrtC = cast(np.ndarray, B.dot(np.diag(1 / D)).dot(B.T))
-        
+
         num_data = int(np.min((len(self.sampled_safe_evals), self.sample_num_lip)))
         prev_x = self.sampled_points[-num_data:]
         z_points = (prev_x - self._mean).dot(invSqrtC) / self._sigma
-        
+
         target_safe_evals = self.sampled_safe_evals[-num_data:]
         evals_mean = np.mean(target_safe_evals, axis=0)
         evals_std = np.std(target_safe_evals, axis=0)
         modified_evals = (target_safe_evals - evals_mean) / evals_std
-        
+
         # function that returns the norm of gradient
         def df(x, model):
-            
+
             out_scalar = (x.ndim == 1)
             x = np.atleast_2d(x)
 
@@ -313,7 +310,7 @@ class SafeCMA:
 
             try:
                 pred_samples = df(samples, model) * evals_std[i]
-            except:
+            except Exception:
                 # if fail to optimize
                 return self.lipschitz_constant[i]
         
@@ -323,7 +320,7 @@ class SafeCMA:
             x0 = samples[np.argmin(pred_samples)]
             
             try:
-                bounds = np.tile([-3, 3], (self._n_dim,1))
+                bounds = np.tile([-3, 3], (self._n_dim, 1))
                 
                 res = scipy.optimize.minimize(
                     df, x0, method='L-BFGS-B', bounds=bounds, args=(model), options={'maxiter': 200}
@@ -409,7 +406,10 @@ class SafeCMA:
 
         self.lipschitz_constant = lip
 
-        delta = np.min((self.safety_threshold - self.seeds_safe_evals[best_seed_id]) / self.lipschitz_constant)
+        slack = self.safety_threshold - self.seeds_safe_evals[best_seed_id]
+        delta = np.min(
+            (slack) / self.lipschitz_constant
+        )
         gauss_tr = np.sqrt(scipy.stats.chi2.ppf(self.gamma, df=self._n_dim))
         sigma = sigma * np.min((delta / gauss_tr, 1))
 
@@ -449,7 +449,8 @@ class SafeCMA:
             sampled_z_points = (prev_x - self._mean).dot(invSqrtC) / self._sigma
 
             # radius: radius of trust region around evaluated points
-            radius = np.min((self.safety_threshold[:, None, None] - prev_safe_evals[None, :, :]) / self.lipschitz_constant[:,None,None], axis=(0,2))
+            slack = self.safety_threshold[:, None, None] - prev_safe_evals[None, :, :]
+            radius = np.min(slack / self.lipschitz_constant[:, None, None], axis=(0, 2))
 
             radius[radius < 0] = - np.inf
             # dist: distance between current samples and evaluated points
@@ -486,7 +487,7 @@ class SafeCMA:
     def tell(self, solutions: list[tuple[np.ndarray, float]]) -> None:
 
         self._naive_cma_update(solutions)
-        
+
         X = np.stack([s[0] for s in solutions])
         safe_evals = np.array([s[2] for s in solutions])
 
