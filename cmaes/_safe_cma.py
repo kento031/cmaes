@@ -86,12 +86,12 @@ class SafeCMA:
 
         safe_seeds:
             Solutions whose safe function values are above the safety thresholds.
-            Safe CMA-ES uses the safe seed with the best evaluation value as 
+            Safe CMA-ES uses the safe seed with the best evaluation value as
             the initial mean vector of multi-variate Gaussian distributions.
 
         seeds_evals:
             Evaluation values of safe seeds on the objective function.
-        
+
         seeds_safe_evals:
             Evaluation values of safe seeds on the safe functions.
 
@@ -321,7 +321,7 @@ class SafeCMA:
                 return self.lipschitz_constant[i]
 
             x0 = samples[np.argmin(pred_samples)]
-            
+
             try:
                 bounds = np.tile([-3, 3], (self._n_dim, 1))
 
